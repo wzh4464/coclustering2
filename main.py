@@ -1,17 +1,20 @@
 import numpy as np
+import h5py
+import scipy.io
+from scipy.linalg import svd
 
-def mycluster1(Data, NumKind):
+def mycluster1(Data, NumKind, NumIter):
     DataRow, DataColumn = Data.shape
     Center = np.random.rand(DataRow, NumKind)
     COV = np.zeros((DataRow, DataRow, NumKind))
     for i in range(NumKind):
         COV[:, :, i] = np.eye(DataRow)
-    for k in range(10):
+    for k in range(NumIter):
         D = np.zeros((NumKind, DataColumn))
         for i in range(NumKind):
             for j in range(DataColumn):
                 D[i, j] = np.linalg.norm(Data[:, j] - Center[:, i])
-        _, Y = np.min(D, axis=0), np.argmin(D, axis=0)
+        Y = np.argmin(D, axis=0)
         for i in range(NumKind):
             Center[:, i] = np.mean(Data[:, Y == i], axis=1)
             COV[:, :, i] = np.cov(Data[:, Y == i])
@@ -22,7 +25,7 @@ def mycluster1(Data, NumKind):
                           np.exp(-0.5 * (Data[:, j] - Center[:, i]).T @ np.linalg.inv(COV[:, :, i]) @ \
                                  (Data[:, j] - Center[:, i]))
         Ynew = np.argmax(B, axis=0)
-    return Ynew
+    return Ynew, Y
 
 def findindex(I, Ngroup):
     Nout = []
@@ -48,29 +51,62 @@ def findindex(I, Ngroup):
         Jout.append(Jc[I[i]-1])
     return np.array(Nout), np.array(Iout), np.array(Jout)
 
+def svdbicluster(data, dim, Num_cluster, read_uv=False):
+    scaledata = data
+    # dim = 10
+    # Num_cluster = 50
+    mf, nf = scaledata.shape
+    U, S, V = svd(scaledata)
+    r = np.linalg.matrix_rank(scaledata)
+    min_scale = 10
+    uicell = {}
+    vicell = {}
+    for d in dim:
+        if read_uv:
+            # read from 'UV.mat'
+            with h5py.File('UV.mat', 'r') as f:
+                u = f['u'][:]
+                v = f['v'][:]
+        else:
+            u = U[:, :d]
+            v = V[:, :d]
+        Normdata = []
+        # Ngroup = min(np.floor(r/d), np.floor(r/min_scale))
+        Ngroup = 5
+        indexu = np.zeros((Ngroup, mf), dtype=int)
+        indexv = np.zeros((Ngroup, nf), dtype=int)
+        for n in range(2, Ngroup):
+            pointeru, _ = mycluster1(u.T, n, 100)
+            pointerv, _ = mycluster1(v.T, n, 100)
+            indexu[n, :] = pointeru
+            indexv[n, :] = pointerv
+            for i in range(n):
+                for j in range(n):
+                    Cdata = scaledata[np.ix_(pointeru == i, pointerv == j)]
+                    Normdata.append(np.linalg.norm(Cdata - np.mean(Cdata)))
+        I = np.argsort(Normdata)
+        Nc, Ic, Jc = findindex(I, Ngroup)
+        for i in range(Num_cluster):
+            ui = np.where(indexu[Nc[i], :] == Ic[i])[0]
+            vi = np.where(indexv[Nc[i], :] == Jc[i])[0]
+            uicell[i] = ui
+            vicell[i] = vi
+        # plt.figure()
+        # plt.stem(Normdata)
+    rowcluster = uicell
+    columcluster = vicell
+    return rowcluster, columcluster
+
 def main():
-    # 生成一些随机数据
-    np.random.seed(0)
-    Data = np.random.rand(3, 100)
+    mat = scipy.io.loadmat('A.mat')
+    dim = 5
+    Num_co_cluster = 8
+    data = mat['A']
+    rowcluster, columcluster = svdbicluster(data, [dim], Num_co_cluster, read_uv=True)
 
-    # 聚类
-    Y = mycluster1(Data, 3)
+    print(rowcluster)
+    print(columcluster)
 
-    # 打印结果
-    print(Y)
-
-    # 生成一些随机数据
-    np.random.seed(0)
-    I = np.array([11, 14, 15, 16, 18, 19, 20, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 12, 3, 9, 8, 6, 5, 4, 13, 10, 25, 17, 29, 21, 1, 7, 2, 39])
-
-    # 查找索引
-    Ngroup = 5
-    Nout, Iout, Jout = findindex(I, Ngroup)
-
-    # 打印结果
-    print("Nout:", Nout)
-    print("Iout:", Iout)
-    print("Jout:", Jout)
 
 if __name__ == '__main__':
     main()
