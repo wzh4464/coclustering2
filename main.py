@@ -3,29 +3,46 @@ import h5py
 import scipy.io
 from scipy.linalg import svd
 
-def mycluster1(Data, NumKind, NumIter):
+def mycluster1(Data, NumKind, maxstep, load_svd=False, svd_file=None):
     DataRow, DataColumn = Data.shape
-    Center = np.random.rand(DataRow, NumKind)
+    Center = np.zeros((DataRow, NumKind))
+    B = np.zeros((NumKind, DataColumn))
     COV = np.zeros((DataRow, DataRow, NumKind))
+    Y = np.zeros(DataColumn)
+    Ynew = np.zeros_like(Y)
+
+    N = DataColumn // NumKind
+    if load_svd and svd_file is not None:
+        with h5py.File(svd_file, 'r') as file:
+            U = np.array(file['U'])
+            S = np.array(file['S'])
+            V = np.array(file['V'])
+    else:
+        U, S, V = np.linalg.svd(Data)
+    enga = U[:, 0].dot(Data)
+
+    Yenga, I = np.sort(enga), np.argsort(enga)
     for i in range(NumKind):
-        COV[:, :, i] = np.eye(DataRow)
-    for k in range(NumIter):
-        D = np.zeros((NumKind, DataColumn))
-        for i in range(NumKind):
-            for j in range(DataColumn):
-                D[i, j] = np.linalg.norm(Data[:, j] - Center[:, i])
-        Y = np.argmin(D, axis=0)
-        for i in range(NumKind):
-            Center[:, i] = np.mean(Data[:, Y == i], axis=1)
-            COV[:, :, i] = np.cov(Data[:, Y == i])
-        B = np.zeros((NumKind, DataColumn))
-        for i in range(NumKind):
-            for j in range(DataColumn):
-                B[i, j] = 1 / (2 * np.pi * np.sqrt(np.linalg.det(COV[:, :, i]))) * \
-                          np.exp(-0.5 * (Data[:, j] - Center[:, i]).T @ np.linalg.inv(COV[:, :, i]) @ \
-                                 (Data[:, j] - Center[:, i]))
-        Ynew = np.argmax(B, axis=0)
-    return Ynew, Y
+        Ynew[I[N*i:N*(i+1)]] = i
+    Ynew[I[N*(NumKind-1):]] = NumKind - 1
+
+    for step in range(maxstep):
+        if np.sum(Ynew != Y) == 0:
+            break
+        else:
+            Y = Ynew.copy()
+            for i in range(NumKind):
+                Center[:, i] = np.mean(Data[:, Y == i], axis=1)
+            for i in range(NumKind):
+                COV[:, :, i] = np.cov(Data[:, Y == i])
+            B = np.zeros((NumKind, DataColumn))
+            for i in range(NumKind):
+                for j in range(DataColumn):
+                    dist = Data[:, j] - Center[:, i]
+                    B[i, j] = multivariate_normal.pdf(Data[:, j], mean=Center[:, i], cov=COV[:, :, i])
+            Ynew = np.argmax(B, axis=0)
+
+    return Center, Y, step
 
 def findindex(I, Ngroup):
     Nout = []
