@@ -4,7 +4,23 @@ import scipy.io
 from scipy.linalg import svd
 
 
-def mycluster1(Data, NumKind, maxstep):
+def mycluster1(Data, NumKind, maxstep, read_uv_from=None):
+    """
+    ! Output Y is labeled from 0 to NumKind-1, not from 1 to NumKind.
+    Given an array of data points, the number of clusters, and the maximum number of iterations, 
+    returns the cluster centers, the cluster assignments, and the number of iterations.
+
+    Args:
+    - Data (numpy.ndarray): Array of data points.
+    - NumKind (int): Number of clusters.
+    - maxstep (int): Maximum number of iterations.
+    - read_uv_from (str): Path to the file to read the first principal component from.
+
+    Returns:
+    - Center (numpy.ndarray): Array of cluster centers.
+    - Y (numpy.ndarray): Array of cluster assignments.
+    - step (int): Number of iterations.
+    """
     DataRow, DataColumn = Data.shape
     Center = np.zeros((DataRow, NumKind))
     B = np.zeros((NumKind, DataColumn))
@@ -15,7 +31,11 @@ def mycluster1(Data, NumKind, maxstep):
     # N = DataColumn // NumKind calculates the number of data points to assign to each cluster.
     N = DataColumn // NumKind
 
-    U, _, _ = np.linalg.svd(Data)
+    if read_uv_from is not None:
+        with h5py.File(read_uv_from, "r") as f:
+            U = f["U"][:].T
+    else:
+        U, _, _ = np.linalg.svd(Data)
 
     # Computes the projection of the input data matrix onto the first principal component.
     enga = U[:, 0].T @ Data
@@ -28,11 +48,11 @@ def mycluster1(Data, NumKind, maxstep):
     # 这个循环根据将输入数据矩阵投影到第一个主成分的排序索引，将剩余的数据点分配给聚类。
     # 它遍历聚类数量，并将接下来的N个数据点分配给每个聚类。
     for i in range(NumKind):
-        Ynew[I[N * i : N * (i + 1)]] = i + 1
+        Ynew[I[N * i : N * (i + 1)]] = i
 
     # Assign the last few data points to the last cluster.
     # Avoiding the case where the number of data points is not divisible by the number of clusters.
-    Ynew[I[N * (NumKind - 1) :]] = NumKind
+    Ynew[I[N * (NumKind - 1) :]] = NumKind - 1
 
     for step in range(maxstep):
         if np.sum(Ynew != Y) == 0:
@@ -44,12 +64,12 @@ def mycluster1(Data, NumKind, maxstep):
             Y = Ynew.copy()
             # Update the cluster centers.
             for i in range(NumKind):
-                NewCenter = np.mean(Data[:, Y == i + 1], axis=1)
+                NewCenter = np.mean(Data[:, Y == i], axis=1)
                 # Update the cluster centers with the mean of the data points assigned to each cluster.
                 Center[:, i] = NewCenter
 
             for i in range(NumKind):
-                COV[:, :, i] = np.cov(Data[:, Y == i + 1], rowvar=True)
+                COV[:, :, i] = np.cov(Data[:, Y == i], rowvar=True)
                 # Update the covariance matrix of each cluster.
 
             B = np.zeros((NumKind, DataColumn))
@@ -68,12 +88,26 @@ def mycluster1(Data, NumKind, maxstep):
                     # B(i,j)=\frac{1}{\sqrt{2\pi}\sqrt{det(Cov_i)}}exp(-\frac{1}{2}d_{ij}^T*Cov_i^{-1}*d_{ij})
 
             # Assign each data point to the cluster with the highest probability.
-            Ynew = np.argmax(B, axis=0) + 1
+            Ynew = np.argmax(B, axis=0)
 
     return Center, Y, step + 1
 
 
 def findindex(I, Ngroup):
+    """
+    Given an array of indices I and the number of groups Ngroup, returns the number of elements in each group, 
+    the row index of each element, and the column index of each element. The number of groups is determined by 
+    the formula a^2, where a is an array of integers from 2 to Ngroup.
+
+    Args:
+    - I (numpy.ndarray): Array of indices.
+    - Ngroup (int): Number of groups.
+
+    Returns:
+    - Nout (numpy.ndarray): Array of the number of elements in each group.
+    - Iout (numpy.ndarray): Array of the row index of each element.
+    - Jout (numpy.ndarray): Array of the column index of each element.
+    """
     Nout = []
     Iout = []
     Jout = []
@@ -103,17 +137,18 @@ def svdbicluster(data, dim, Num_cluster, read_uv=False):
     # dim = 10
     # Num_cluster = 50
     mf, nf = scaledata.shape
-    U, S, V = svd(scaledata)
-    r = np.linalg.matrix_rank(scaledata)
-    min_scale = 10
+    U, _, V = svd(scaledata)
     uicell = {}
     vicell = {}
     for d in dim:
         if read_uv:
             # read from 'UV.mat'
             with h5py.File("UV.mat", "r") as f:
-                u = f["u"][:]
-                v = f["v"][:]
+                # 用h5py读取mat文件时，得到的矩阵维度顺序相反
+                # u = f["u"][:]
+                # v = f["v"][:]
+                u = f["u"][:].T
+                v = f["v"][:].T
         else:
             u = U[:, :d]
             v = V[:, :d]
@@ -123,8 +158,11 @@ def svdbicluster(data, dim, Num_cluster, read_uv=False):
         indexu = np.zeros((Ngroup, mf), dtype=int)
         indexv = np.zeros((Ngroup, nf), dtype=int)
         for n in range(2, Ngroup):
-            pointeru, _, _ = mycluster1(u.T, n, 100)
-            pointerv, _, _ = mycluster1(v.T, n, 100)
+            if n == 2:
+                _, pointeru, _ = mycluster1(u.T, n, 100, read_uv_from="u2.mat")
+            else:
+                _, pointeru, _ = mycluster1(u.T, n, 100)
+            _, pointerv, _ = mycluster1(v.T, n, 100)
             indexu[n, :] = pointeru
             indexv[n, :] = pointerv
             for i in range(n):
