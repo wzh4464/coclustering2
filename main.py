@@ -7,7 +7,7 @@ from scipy.linalg import svd
 def mycluster1(Data, NumKind, maxstep, read_uv_from=None):
     """
     ! Output Y is labeled from 0 to NumKind-1, not from 1 to NumKind.
-    Given an array of data points, the number of clusters, and the maximum number of iterations, 
+    Given an array of data points, the number of clusters, and the maximum number of iterations,
     returns the cluster centers, the cluster assignments, and the number of iterations.
 
     Args:
@@ -95,8 +95,8 @@ def mycluster1(Data, NumKind, maxstep, read_uv_from=None):
 
 def findindex(I, Ngroup):
     """
-    Given an array of indices I and the number of groups Ngroup, returns the number of elements in each group, 
-    the row index of each element, and the column index of each element. The number of groups is determined by 
+    Given an array of indices I and the number of groups Ngroup, returns the number of elements in each group,
+    the row index of each element, and the column index of each element. The number of groups is determined by
     the formula a^2, where a is an array of integers from 2 to Ngroup.
     给定索引数组I和组数Ngroup，返回每个组中元素的数量，每个元素的行索引和每个元素的列索引。组数由公式a^2确定，其中a是从2到Ngroup的整数数组。
 
@@ -130,9 +130,9 @@ def findindex(I, Ngroup):
             Jc.extend(list(range(1, i + 1)))
     # 将簇的大小、行和列映射到输出向量中
     for i in range(N):
-        Nout.append(Nc[I[i] - 1])
-        Iout.append(Ic[I[i] - 1])
-        Jout.append(Jc[I[i] - 1])
+        Nout.append(Nc[I[i]])
+        Iout.append(Ic[I[i]])
+        Jout.append(Jc[I[i]])
     return np.array(Nout), np.array(Iout), np.array(Jout)
 
 
@@ -188,14 +188,40 @@ def svdbicluster(data, dim, Num_cluster, read_uv=False):
 
 
 def main():
-    mat = scipy.io.loadmat("A.mat")
-    dim = 5
-    Num_co_cluster = 8
-    data = mat["A"]
-    rowcluster, columcluster = svdbicluster(data, [dim], Num_co_cluster, read_uv=True)
+    ## test whole
+    # mat = scipy.io.loadmat("A.mat")
+    # dim = 5
+    # Num_co_cluster = 8
+    # data = mat["A"]
+    # rowcluster, columcluster = svdbicluster(data, [dim], Num_co_cluster, read_uv=True)
 
-    print(rowcluster)
-    print(columcluster)
+    # print(rowcluster)
+    # print(columcluster)
+    
+    ## test findindex
+    # load("I.mat")
+    # Ngroup = 5
+    # [Nc, Ic, Jc] = findindex(I, Ngroup)
+    with h5py.File("I.mat", "r") as f:
+        # 用h5py读取mat文件时，得到的矩阵维度顺序相反
+        I = f["I"][:].T
+        # flatten I
+        I = I[0]
+        # convert I to integer array
+        I = I.astype(int)
+        # convert I to 0-based
+        I = I - 1
+        
+    Ngroup = 5
+    Nc, Ic, Jc = findindex(I, Ngroup)
+    # show result: (Nc, Ic, Jc) formatly and their size
+    print("Nc: ", Nc)
+    print("Nc size: ", Nc.size)
+    print("Ic: ", Ic)
+    print("Ic size: ", Ic.size)
+    print("Jc: ", Jc)
+    print("Jc size: ", Jc.size)
+    
 
 
 if __name__ == "__main__":
