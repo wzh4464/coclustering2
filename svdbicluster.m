@@ -5,8 +5,8 @@ scaledata = data;
 %dim = 10;
 %Num_cluster = 50;
 
-[mf nf] = size(scaledata);
-[U S V]=svd(scaledata);
+[mf, nf] = size(scaledata);
+[U, ~, V]=svd(scaledata);
 r = rank(scaledata);
 
 min_scale = 10;

@@ -98,6 +98,7 @@ def findindex(I, Ngroup):
     Given an array of indices I and the number of groups Ngroup, returns the number of elements in each group, 
     the row index of each element, and the column index of each element. The number of groups is determined by 
     the formula a^2, where a is an array of integers from 2 to Ngroup.
+    给定索引数组I和组数Ngroup，返回每个组中元素的数量，每个元素的行索引和每个元素的列索引。组数由公式a^2确定，其中a是从2到Ngroup的整数数组。
 
     Args:
     - I (numpy.ndarray): Array of indices.
@@ -118,13 +119,16 @@ def findindex(I, Ngroup):
     a = np.arange(2, Ngroup + 1)
     aa = a**2
     Nc[: aa[0]] = a[0]
+    # 计算每个簇的大小
     for i in range(1, len(a)):
         Ntemp = np.sum(aa[:i])
         Nc[Ntemp : Ntemp + aa[i]] = a[i]
+    # 计算每个簇的行和列
     for i in range(2, len(a) + 2):
         for j in range(1, i + 1):
             Ic.extend([j] * i)
             Jc.extend(list(range(1, i + 1)))
+    # 将簇的大小、行和列映射到输出向量中
     for i in range(N):
         Nout.append(Nc[I[i] - 1])
         Iout.append(Ic[I[i] - 1])
