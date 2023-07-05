@@ -2,6 +2,7 @@ import numpy as np
 import h5py
 import scipy.io
 from scipy.linalg import svd
+from matplotlib import pyplot as plt
 
 
 def mycluster1(Data, NumKind, maxstep, read_uv_from=None):
@@ -155,33 +156,38 @@ def svdbicluster(data, dim, Num_cluster, read_uv=False):
                 v = f["v"][:].T
         else:
             u = U[:, :d]
-            v = V[:, :d]
+            v = V.T[:, :d]
         Normdata = []
         # Ngroup = min(np.floor(r/d), np.floor(r/min_scale))
         Ngroup = 5
         indexu = np.zeros((Ngroup, mf), dtype=int)
         indexv = np.zeros((Ngroup, nf), dtype=int)
-        for n in range(2, Ngroup):
-            if n == 2:
-                _, pointeru, _ = mycluster1(u.T, n, 100, read_uv_from="u2.mat")
-            else:
-                _, pointeru, _ = mycluster1(u.T, n, 100)
+        for n in range(2, Ngroup + 1):
+            # if n == 2:
+            #     _, pointeru, _ = mycluster1(u.T, n, 100, read_uv_from="u2.mat")
+            # else:
+            _, pointeru, _ = mycluster1(u.T, n, 100)
             _, pointerv, _ = mycluster1(v.T, n, 100)
-            indexu[n, :] = pointeru
-            indexv[n, :] = pointerv
+            indexu[n - 1, :] = pointeru
+            indexv[n - 1, :] = pointerv
             for i in range(n):
                 for j in range(n):
                     Cdata = scaledata[np.ix_(pointeru == i, pointerv == j)]
-                    Normdata.append(np.linalg.norm(Cdata - np.mean(Cdata)))
+                    if Cdata.size == 0:
+                        Normdata.append(0)
+                    else:
+                        Normdata.append(np.linalg.norm(Cdata - np.mean(Cdata)))
+
+        # ascending sort
         I = np.argsort(Normdata)
         Nc, Ic, Jc = findindex(I, Ngroup)
         for i in range(Num_cluster):
-            ui = np.where(indexu[Nc[i], :] == Ic[i])[0]
-            vi = np.where(indexv[Nc[i], :] == Jc[i])[0]
+            ui = np.where(indexu[Nc[i] - 1, :] == Ic[i])[0]
+            vi = np.where(indexv[Nc[i] - 1, :] == Jc[i])[0]
             uicell[i] = ui
             vicell[i] = vi
-        # plt.figure()
-        # plt.stem(Normdata)
+        plt.figure()
+        plt.stem(Normdata)
     rowcluster = uicell
     columcluster = vicell
     return rowcluster, columcluster
@@ -189,39 +195,38 @@ def svdbicluster(data, dim, Num_cluster, read_uv=False):
 
 def main():
     ## test whole
-    # mat = scipy.io.loadmat("A.mat")
-    # dim = 5
-    # Num_co_cluster = 8
-    # data = mat["A"]
-    # rowcluster, columcluster = svdbicluster(data, [dim], Num_co_cluster, read_uv=True)
+    mat = scipy.io.loadmat("A.mat")
+    dim = 5
+    Num_co_cluster = 8
+    data = mat["A"]
+    rowcluster, columcluster = svdbicluster(data, [dim], Num_co_cluster)
 
-    # print(rowcluster)
+    print(rowcluster)
     # print(columcluster)
-    
+
     ## test findindex
     # load("I.mat")
     # Ngroup = 5
     # [Nc, Ic, Jc] = findindex(I, Ngroup)
-    with h5py.File("I.mat", "r") as f:
-        # 用h5py读取mat文件时，得到的矩阵维度顺序相反
-        I = f["I"][:].T
-        # flatten I
-        I = I[0]
-        # convert I to integer array
-        I = I.astype(int)
-        # convert I to 0-based
-        I = I - 1
-        
-    Ngroup = 5
-    Nc, Ic, Jc = findindex(I, Ngroup)
-    # show result: (Nc, Ic, Jc) formatly and their size
-    print("Nc: ", Nc)
-    print("Nc size: ", Nc.size)
-    print("Ic: ", Ic)
-    print("Ic size: ", Ic.size)
-    print("Jc: ", Jc)
-    print("Jc size: ", Jc.size)
-    
+    # with h5py.File("I.mat", "r") as f:
+    #     # 用h5py读取mat文件时，得到的矩阵维度顺序相反
+    #     I = f["I"][:].T
+    #     # flatten I
+    #     I = I[0]
+    #     # convert I to integer array
+    #     I = I.astype(int)
+    #     # convert I to 0-based
+    #     I = I - 1
+
+    # Ngroup = 5
+    # Nc, Ic, Jc = findindex(I, Ngroup)
+    # # show result: (Nc, Ic, Jc) formatly and their size
+    # print("Nc: ", Nc)
+    # print("Nc size: ", Nc.size)
+    # print("Ic: ", Ic)
+    # print("Ic size: ", Ic.size)
+    # print("Jc: ", Jc)
+    # print("Jc size: ", Jc.size)
 
 
 if __name__ == "__main__":
