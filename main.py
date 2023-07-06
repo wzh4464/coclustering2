@@ -3,6 +3,49 @@ import h5py
 import scipy.io
 from scipy.linalg import svd
 from matplotlib import pyplot as plt
+import xml.etree.ElementTree as ET
+
+
+def read_weibo(file_path="微博情感分析评测/样例数据/labelled dataset/ipad.xml"):
+    """
+    Read the XML file and return a list of dictionaries.
+    读取XML文件并返回字典列表。
+    """
+    # 解析 XML 文件
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+
+    # 遍历微博元素
+    weibos = []
+    for weibo in root.findall("weibo"):
+        weibo_id = weibo.get("id")
+        sentences = []
+        # 遍历句子元素
+        for sentence in weibo.findall("sentence"):
+            sentence_id = sentence.get("id")
+            opinionated = sentence.get("opinionated")
+            polarity = sentence.get("polarity")
+            target_word_1 = sentence.get("target_word_1")
+            target_begin_1 = sentence.get("target_begin_1")
+            target_end_1 = sentence.get("target_end_1")
+            target_polarity_1 = sentence.get("target_polarity_1")
+            text = sentence.text.strip()
+            # 将句子信息存储到字典中
+            sentence_dict = {
+                "id": sentence_id,
+                "opinionated": opinionated,
+                "polarity": polarity,
+                "target_word_1": target_word_1,
+                "target_begin_1": target_begin_1,
+                "target_end_1": target_end_1,
+                "target_polarity_1": target_polarity_1,
+                "text": text,
+            }
+            sentences.append(sentence_dict)
+        # 将微博信息存储到字典中
+        weibo_dict = {"id": weibo_id, "sentences": sentences}
+        weibos.append(weibo_dict)
+    return weibos
 
 
 def mycluster1(Data, NumKind, maxstep, read_uv_from=None):
@@ -193,7 +236,7 @@ def svdbicluster(data, dim, Num_cluster, read_uv=False):
     return rowcluster, columcluster
 
 
-def main():
+def test_cocluster():
     ## test whole
     mat = scipy.io.loadmat("A.mat")
     dim = 5
@@ -202,32 +245,22 @@ def main():
     rowcluster, columcluster = svdbicluster(data, [dim], Num_co_cluster)
 
     print(rowcluster)
-    # print(columcluster)
+    print(columcluster)
 
-    ## test findindex
-    # load("I.mat")
-    # Ngroup = 5
-    # [Nc, Ic, Jc] = findindex(I, Ngroup)
-    # with h5py.File("I.mat", "r") as f:
-    #     # 用h5py读取mat文件时，得到的矩阵维度顺序相反
-    #     I = f["I"][:].T
-    #     # flatten I
-    #     I = I[0]
-    #     # convert I to integer array
-    #     I = I.astype(int)
-    #     # convert I to 0-based
-    #     I = I - 1
 
-    # Ngroup = 5
-    # Nc, Ic, Jc = findindex(I, Ngroup)
-    # # show result: (Nc, Ic, Jc) formatly and their size
-    # print("Nc: ", Nc)
-    # print("Nc size: ", Nc.size)
-    # print("Ic: ", Ic)
-    # print("Ic size: ", Ic.size)
-    # print("Jc: ", Jc)
-    # print("Jc size: ", Jc.size)
+def test_findindex():
+    Ngroup = 5
+    Nc, Ic, Jc = findindex(I, Ngroup)
+    # show result: (Nc, Ic, Jc) formatly and their size
+    print("Nc: ", Nc)
+    print("Nc size: ", Nc.size)
+    print("Ic: ", Ic)
+    print("Ic size: ", Ic.size)
+    print("Jc: ", Jc)
+    print("Jc size: ", Jc.size)
 
+def main():
+    print(read_weibo())
 
 if __name__ == "__main__":
     main()
