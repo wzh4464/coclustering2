@@ -4,7 +4,8 @@ import scipy.io
 from scipy.linalg import svd
 from matplotlib import pyplot as plt
 import xml.etree.ElementTree as ET
-
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 def read_weibo(file_path="微博情感分析评测/样例数据/labelled dataset/ipad.xml"):
     """
@@ -122,11 +123,14 @@ def mycluster1(Data, NumKind, maxstep, read_uv_from=None):
             for i in range(NumKind):
                 for j in range(DataColumn):
                     d_ij = Data[:, j] - Center[:, i]
-                    B[i, j] = (
-                        1
-                        / (2 * np.pi * np.sqrt(np.linalg.det(COV[:, :, i])))
-                        * np.exp(-0.5 * d_ij.T @ np.linalg.inv(COV[:, :, i]) @ d_ij)
-                    )
+                    try:
+                        B[i, j] = (
+                            1
+                            / (2 * np.pi * np.sqrt(np.linalg.det(COV[:, :, i])))
+                            * np.exp(-0.5 * d_ij.T @ np.linalg.inv(COV[:, :, i]) @ d_ij)
+                        )
+                    except np.linalg.LinAlgError:
+                        B[i, j] = np.nan
                     # Update the probability of each data point belonging to each cluster.
                     # Note Data[:,j]-Center[:,i] as d_ij.
                     # B(i,j)=\frac{1}{\sqrt{2\pi}\sqrt{det(Cov_i)}}exp(-\frac{1}{2}d_{ij}^T*Cov_i^{-1}*d_{ij})
@@ -258,9 +262,98 @@ def test_findindex():
     print("Ic size: ", Ic.size)
     print("Jc: ", Jc)
     print("Jc size: ", Jc.size)
+    
+def generate_ngrams(text, n = 2):
+    """
+    生成n-gram序列
+    参数:
+        text (str): 输入文本
+        n (int): n-gram中的n值
+    返回:
+        ngrams (list): 包含n-gram序列的列表
+    """
+    words = text.split()
+    ngrams = []
+    for i in range(len(words) - n + 1):
+        ngrams.append(words[i:i+n])
+    return ngrams
 
 def main():
-    print(read_weibo())
+    weibos = read_weibo()
+    # ngram_sequence = generate_ngrams(weibos[0]["sentences"][0]["text"])
+    # # 示例用法
+    # ngram_sequences = [['This', 'is', 'an'], ['is', 'an', 'example'], ['an', 'example', 'sentence'], ['example', 'sentence', 'for'], ['sentence', 'for', 'n-gram'], ['for', 'n-gram', 'generation.']]
+
+    # # 使用词袋模型表示
+    # count_vectorizer = CountVectorizer()
+    # count_vectors = count_vectorizer.fit_transform([' '.join(seq) for seq in ngram_sequences])
+    # print(count_vectors.toarray())
+
+    # # 使用TF-IDF表示
+    # tfidf_vectorizer = TfidfVectorizer()
+    # tfidf_vectors = tfidf_vectorizer.fit_transform([' '.join(seq) for seq in ngram_sequences])
+    # print(tfidf_vectors.toarray())
+    
+    ## success to use
+    # result = [' '.join(seq) for seq in ngram_sequence]
+    # count_vectorizer = CountVectorizer()
+    # count_vectors = count_vectorizer.fit_transform(result)
+    # print(count_vectors.toarray())
+    
+    sentences = []
+    
+    for weibo in weibos:
+        for sentence in weibo["sentences"]:
+            sentences.append(sentence["text"])
+
+    # # vectorizer = CountVectorizer()
+    vectorizer = TfidfVectorizer()
+    vectorized_sentences = vectorizer.fit_transform(sentences)
+    dense_vectors = vectorized_sentences.toarray()
+    
+    U, S, V = svd(dense_vectors)
+    plt.plot(S)
+    plt.show()
+    # similarity_matrix = cosine_similarity(dense_vectors)
+    # rowcluster, columcluster = svdbicluster(similarity_matrix, [2:8], 50)
+    # rowcluster, columcluster = svdbicluster(similarity_matrix, [2, 3, 4, 5, 6, 7], 50)
+    # rowcluster, columcluster = svdbicluster(dense_vectors, [2, 3, 4, 5, 6, 7], 50)
+    # print(rowcluster)
+    # print(columcluster)
+    
+    # print(sentences)
+    # print sentences line by line
+    i = 0
+    # for sentence in sentences:
+    #     # with line number
+    #     print(i, sentence)
+    #     i += 1
+        
+    # print these sentences: [  1,   8,  21,  65,  74, 107, 110, 131, 132, 134, 136, 150, 169, 184, 192, 197, 198, 200, 218] with a star in the front, and print the others normally
+    # for sentence in sentences:
+    #     if i in [  1,   8,  21,  65,  74, 107, 110, 131, 132, 134, 136, 150, 169, 184, 192, 197, 198, 200, 218]:
+    #         print("*", sentence)
+    #     else:
+    #         print(sentence)
+    #     i += 1
+    
+    # print these sentences: [  1,   8,  21,  65,  74, 107, 110, 131, 132, 134, 136, 150, 169, 184, 192, 197, 198, 200, 218] in red, and print the others normally 
+    # for sentence in sentences:
+    #     if i in [  1,   8,  21,  65,  74, 107, 110, 131, 132, 134, 136, 150, 169, 184, 192, 197, 198, 200, 218]:
+    #         print("\033[1;31m", sentence, "\033[0m")
+    #     else:
+    #         print(sentence)
+    #     i += 1
+        
+    # print to a file with color
+    # with open("sentences.md", "w") as f:
+    #     for sentence in sentences:
+    #         if i in [  1,   8,  21,  65,  74, 107, 110, 131, 132, 134, 136, 150, 169, 184, 192, 197, 198, 200, 218]:
+    #             f.write("**" + sentence + "**\r\n\n")
+    #         else:
+    #             f.write(sentence + "\r\n\n")
+    #         i += 1
+
 
 if __name__ == "__main__":
     main()
