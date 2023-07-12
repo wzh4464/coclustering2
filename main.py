@@ -6,6 +6,9 @@ from matplotlib import pyplot as plt
 import xml.etree.ElementTree as ET
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from readjson import process_json_file
+# Word2Vec
+from gensim.models import Word2Vec
 
 def read_weibo(file_path="微博情感分析评测/样例数据/labelled dataset/ipad.xml"):
     """
@@ -279,41 +282,29 @@ def generate_ngrams(text, n = 2):
     return ngrams
 
 def main():
-    weibos = read_weibo()
-    # ngram_sequence = generate_ngrams(weibos[0]["sentences"][0]["text"])
-    # # 示例用法
-    # ngram_sequences = [['This', 'is', 'an'], ['is', 'an', 'example'], ['an', 'example', 'sentence'], ['example', 'sentence', 'for'], ['sentence', 'for', 'n-gram'], ['for', 'n-gram', 'generation.']]
+    sentences = process_json_file("raw/ultrachat_release_230407.json")
+    # sentences = process_json_file("raw/first_100.json")
+    print(sentences)
 
-    # # 使用词袋模型表示
-    # count_vectorizer = CountVectorizer()
-    # count_vectors = count_vectorizer.fit_transform([' '.join(seq) for seq in ngram_sequences])
-    # print(count_vectors.toarray())
-
-    # # 使用TF-IDF表示
-    # tfidf_vectorizer = TfidfVectorizer()
-    # tfidf_vectors = tfidf_vectorizer.fit_transform([' '.join(seq) for seq in ngram_sequences])
-    # print(tfidf_vectors.toarray())
+    # TF vectorizer
+    # vectorizer = TfidfVectorizer()
+    # vectorized_sentences = vectorizer.fit_transform(sentences)
+    # dense_vectors = vectorized_sentences.toarray()
     
-    ## success to use
-    # result = [' '.join(seq) for seq in ngram_sequence]
-    # count_vectorizer = CountVectorizer()
-    # count_vectors = count_vectorizer.fit_transform(result)
-    # print(count_vectors.toarray())
+    # U, S, V = svd(dense_vectors)
+    # plt.plot(S)
+    # plt.show()
     
-    sentences = []
+    # word embedding
+    word2vec = Word2Vec(sentences, window=5, min_count=1, workers=4)
+    # get embedding matrix
+    embedding_matrix = word2vec.wv.vectors
+    # show embedding matrix
+    print(embedding_matrix)
     
-    for weibo in weibos:
-        for sentence in weibo["sentences"]:
-            sentences.append(sentence["text"])
-
-    # # vectorizer = CountVectorizer()
-    vectorizer = TfidfVectorizer()
-    vectorized_sentences = vectorizer.fit_transform(sentences)
-    dense_vectors = vectorized_sentences.toarray()
     
-    U, S, V = svd(dense_vectors)
-    plt.plot(S)
-    plt.show()
+    
+    
     # similarity_matrix = cosine_similarity(dense_vectors)
     # rowcluster, columcluster = svdbicluster(similarity_matrix, [2:8], 50)
     # rowcluster, columcluster = svdbicluster(similarity_matrix, [2, 3, 4, 5, 6, 7], 50)
@@ -323,7 +314,7 @@ def main():
     
     # print(sentences)
     # print sentences line by line
-    i = 0
+    # i = 0
     # for sentence in sentences:
     #     # with line number
     #     print(i, sentence)
@@ -357,3 +348,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print("Done!")

@@ -24,14 +24,18 @@ def process_json_file(source_file_path, target_file_path=None):
     results = []
 
     # 打开源文件和目标文件
-    with open(source_file_path, "r") as source_file, open(target_file_path, "w") as target_file:
-        # 逐行读取源文件
-        for result in pool.imap_unordered(process_line, source_file):
-            results.extend(result)
-            if target_file_path is not None:
-                for sentence in result:
-                    target_file.write(sentence + "\n")
-
+    with open(source_file_path, "r") as source_file:
+        if target_file_path is not None:
+            with open(target_file_path, "w") as target_file:
+                # 逐行读取源文件
+                for result in pool.imap_unordered(process_line, source_file):
+                    results.extend(result)
+                    for sentence in result:
+                        target_file.write(sentence + "\n")
+        else:
+            for result in pool.imap_unordered(process_line, source_file):
+                    results.extend(result)
+                    
     pool.close()
     pool.join()
 
