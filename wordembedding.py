@@ -1,7 +1,3 @@
-from readjson import process_json_file
-sentences = process_json_file("raw/ultrachat_release_230407.json")
-
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -66,6 +62,12 @@ def train(model, data_loader, epochs, device):
 
             total_loss += loss.item()
         print(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss / len(data_loader)}")
+
+# read sentences from processed/output.txt
+# each line is a sentence
+
+with open('processed/output.txt', 'r') as f:
+    sentences = [line.split() for line in f.readlines()]
 
 dataset = SkipGramDataset(sentences)
 data_loader = DataLoader(dataset, batch_size=32, shuffle=True)
