@@ -9,6 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from readjson import process_json_file
 # Word2Vec
 from gensim.models import Word2Vec
+import time
 
 def read_weibo(file_path="微博情感分析评测/样例数据/labelled dataset/ipad.xml"):
     """
@@ -282,25 +283,64 @@ def generate_ngrams(text, n = 2):
     return ngrams
 
 def main():
-    sentences = process_json_file("raw/ultrachat_release_230407.json")
-    # sentences = process_json_file("raw/first_100.json")
-    print(sentences)
+    start = time.time()
+    # sentences = process_json_file("raw/ultrachat_release_230407.json")
+    sentences = process_json_file("raw/first_1000.json")
+    print("process_json_file time: ", time.time() - start)
+    print(len(sentences))
+
+    # n-gram
+    vectorizer = CountVectorizer(ngram_range=(1, 2))
+    print("vectorizer time: ", time.time() - start)
+    
+    vectorized_sentences = vectorizer.fit_transform(sentences)
+    print("vectorized_sentences time: ", time.time() - start)
+    print("vectorized_sentences.shape: ", vectorized_sentences.shape)
+    
+    # count non zero elements
+    print(vectorized_sentences.nnz)
+    
+    # extract sparse indices
+    sentences_indices = vectorized_sentences.tocoo()
+    print("sentences_indices time: ", time.time() - start)
+    print("sentences_indices", sentences_indices)
+    
+    # extract first 2000 columns
+    first_2000_indices = sentences_indices.col < 2000
+    
+    # to dense vectors
+    dense_vectors = np.zeros((len(sentences), 2000))
+    for i, j, v in zip(sentences_indices.row, sentences_indices.col, sentences_indices.data):
+        if j < 2000:
+            dense_vectors[i, j] = v
+    
+    # dense_vectors = vectorized_sentences.toarray()
+    # dense_vectors = vectorized_sentences[:, first_2000_indices].toarray()
+    print("dense_vectors time: ", time.time() - start)
+    print("dense_vectors shape: ", dense_vectors.shape)
+    
+    # export dense_vectors to mat file that MATLAB can read
+    scipy.io.savemat("dense_vectors.mat", {"dense_vectors": dense_vectors})
+    print("savemat time: ", time.time() - start)
 
     # TF vectorizer
     # vectorizer = TfidfVectorizer()
     # vectorized_sentences = vectorizer.fit_transform(sentences)
     # dense_vectors = vectorized_sentences.toarray()
     
-    # U, S, V = svd(dense_vectors)
-    # plt.plot(S)
-    # plt.show()
+    U, S, V = svd(dense_vectors)
+    print("svd time: ", time.time() - start)
+    
+    plt.plot(S)
+    plt.show()
+    
     
     # word embedding
-    word2vec = Word2Vec(sentences, window=5, min_count=1, workers=4)
-    # get embedding matrix
-    embedding_matrix = word2vec.wv.vectors
-    # show embedding matrix
-    print(embedding_matrix)
+    # word2vec = Word2Vec(sentences, window=5, min_count=1, workers=4)
+    # # get embedding matrix
+    # embedding_matrix = word2vec.wv.vectors
+    # # show embedding matrix
+    # print(embedding_matrix)
     
     
     

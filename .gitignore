@@ -4,3 +4,5 @@ Co-Clustering to Reveal Salient Facial Features.pdf
 output.txt
 *.xml
 __pycache__/**
+*.mat
+*.npz
