@@ -322,6 +322,16 @@ def main():
     # export dense_vectors to mat file that MATLAB can read
     scipy.io.savemat("dense_vectors.mat", {"dense_vectors": dense_vectors})
     print("savemat time: ", time.time() - start)
+    sentences = process_json_file("raw/ultrachat_release_230407.json")
+    # sentences = process_json_file("raw/first_100.json")
+    # print(sentences)
+
+    # n-gram vectorizer
+    vectorizer = CountVectorizer(ngram_range=(1, 2))
+    vectorized_sentences = vectorizer.fit_transform(sentences)
+    dence_vectors = vectorized_sentences.toarray()
+    
+    print(dence_vectors.shape)
 
     # TF vectorizer
     # vectorizer = TfidfVectorizer()
@@ -384,8 +394,9 @@ def main():
     #         else:
     #             f.write(sentence + "\r\n\n")
     #         i += 1
+    print("Done!")
 
 
 if __name__ == "__main__":
     main()
-    print("Done!")
+    
